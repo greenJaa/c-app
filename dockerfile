@@ -1,15 +1,18 @@
-# syntax=docker/dockerfile:1
-
-FROM alpine:3.20 AS BUILDER
-WORKDIR ./ 
-RUN apk update --no-cache || (sleep 5 && apk update --no-cache)
-RUN apk add --no-cache git automake autoconf alpine-sdk ncurses-dev ncurses-static || \
-    (sleep 5 && apk add --no-cache git automake autoconf alpine-sdk ncurses-dev ncurses-static)
-#RUN apk update --no-cache && apk add git automake autoconf alpine-sdk ncurses-dev ncurses-static
+FROM alpine AS BUILDER
+WORKDIR /home/project
+RUN apk update --no-cache && apk add git automake autoconf alpine-sdk ncurses-dev ncurses-static
 COPY app.c ./
-RUN gcc app.c -o app
+RUN gcc app.c -o app && ls -l app  # Check that the app binary is created
 
 FROM alpine:latest
-WORKDIR .
-COPY --from=builder app ./
-CMD ["./app"]
+WORKDIR /home/app_home
+
+# Install runtime dependencies (e.g., libc6-compat)
+RUN apk add --no-cache libc6-compat
+
+# Copy the compiled app binary from the BUILDER stage
+COPY --from=builder /home/project/app .
+
+# Use absolute path in CMD to avoid any relative path issues
+CMD ["/home/app_home/app"]
+
